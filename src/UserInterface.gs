@@ -136,7 +136,8 @@ function getMetadataForAll() {
   if (!accessionCol) {
     alertBox(
       `${HEADER_PROP_ACCESSION} column does not exist in header row ${HEADER_ROW}\n` +
-      `Add ${HEADER_PROP_ACCESSION} to the header row and define ${HEADER_PROP_ACCESSION}s below it.`
+      `Add ${HEADER_PROP_ACCESSION} to the header row and define ${HEADER_PROP_ACCESSION}s below it.\n` +
+      `You can also add ${HEADER_PROP_SKIP} column and set it to 1 for any row to skip all REST actions for that specific row.`
     );
     return;
   }
@@ -161,6 +162,7 @@ function putAll() {
     `Found ${numData} data row(s).\n\n` + 
     "PUT action will REPLACE metadata on the portal with those on the sheet, " +
     "any missing properties on the sheet will be REMOVED from portal's metadata.\n\n" +
+    `You can add ${HEADER_PROP_SKIP} column and set it to 1 for a row that you want to skip REST actions.\n\n` +
     `Are you sure to PUT to ${getEndpointWrite()}?`)) {
     return;
   }
@@ -182,6 +184,7 @@ function postAll() {
   if (numData && !alertBoxOkCancel(
     `Found ${numData} data row(s).\n\n` +
     "POST action will submit new objects (rows on the sheet) to the portal.\n\n" +
+    `You can add ${HEADER_PROP_SKIP} column and set it to 1 for a row that you want to skip REST actions.\n\n`
     `Are you sure to POST to ${getEndpointWrite()}?`)) {
     return;
   }

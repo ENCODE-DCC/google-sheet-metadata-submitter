@@ -1,6 +1,5 @@
 const HEADER_ROW = 1;
 
-
 function getCurrentSheet() {
   return SpreadsheetApp.getActive().getActiveSheet();
 }
@@ -10,7 +9,8 @@ function setSheetMetadata(sheet, key, val) {
   if (currentVal) {
     // delete existing metadata
     var finder = sheet.createDeveloperMetadataFinder().withKey(key).find();
-    finder[0].delete();
+    Logger.log(finder);
+    finder[0].remove();
   }
   sheet.addDeveloperMetadata(key, val);
 }
@@ -197,8 +197,11 @@ function updateHeaderWithArray(sheet, arr) {
   return currentProps.concat(newProps);
 }
 
-function writeJsonToRow(sheet, json, row) {
-  var jsonProps = Object.keys(json);
+function writeJsonToRow(sheet, json, row, props) {
+  // `props` is an optional input array to have an ordered list of props in `json`
+  // the order of `props` is kept (so it's important) when new props are added to header
+
+  var jsonProps = props ? props : Object.keys(json);
   var extendedHeaderProps = updateHeaderWithArray(sheet, jsonProps);
 
   var arr = extendedHeaderProps.map(prop => {
@@ -216,9 +219,9 @@ function writeJsonToRow(sheet, json, row) {
   writeRangeToCells(sheet, row, 1, [arr]);
 }
 
-function addJsonToSheet(sheet, json) {
+function addJsonToSheet(sheet, json, props) {
   var lastRow = Math.max(getLastRow(sheet), HEADER_ROW) + 1;
-  writeJsonToRow(sheet, json, lastRow);
+  writeJsonToRow(sheet, json, lastRow, props);
 }
 
 function rowToJson(sheet, row, keepCommentedProps, bypassGoogleAutoParsing) {  
@@ -259,4 +262,3 @@ function rowToJson(sheet, row, keepCommentedProps, bypassGoogleAutoParsing) {
   }
   return result;
 }
-

@@ -39,6 +39,16 @@ function trimTrailingSlash(str) {
   return str.replace(/\/+$/, "");
 }
 
+function snakeToCamel(snake) {
+  return snake.toLowerCase().replace(/([-_][a-z])/g,
+    group => group.toUpperCase().replace('-', '').replace('_', '')
+  );
+}
+
+function capitalizeWord(word) {
+  return word[0].toUpperCase() + word.substr(1);
+}
+
 function alertBoxOkCancel(prompt) {
   return SpreadsheetApp.getUi().alert(
     prompt, SpreadsheetApp.getUi().ButtonSet.OK_CANCEL
@@ -47,6 +57,14 @@ function alertBoxOkCancel(prompt) {
 
 function alertBox(prompt) {
   SpreadsheetApp.getUi().alert(prompt);
+}
+
+function getCurrentLocalTimeString(sep="-") {
+  // returns current time string with all special characters
+  // replaced with `sep`
+  var d = new Date();
+  d = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return d.toISOString().replace(/T/g,sep).replace(/\:/g,sep).replace(/Z/g,'') .replace(/\..*/g,'');
 }
 
 // https://stackoverflow.com/a/47098533/8819536
@@ -68,4 +86,3 @@ function openUrl( url ){
   .setWidth( 90 ).setHeight( 1 );
   SpreadsheetApp.getUi().showModalDialog( html, "Opening ..." );
 }
-

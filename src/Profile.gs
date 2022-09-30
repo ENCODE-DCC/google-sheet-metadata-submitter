@@ -128,17 +128,26 @@ const ALL_PROFILES = [
 const COLOR_PROP_DEFAULT = "black";
 const COLOR_PROP_REQUIRED = "red";
 const COLOR_PROP_INDENTIFYING = "blue";
-const COLOR_PROP_READONLY = "gray";
-const COLOR_PROP_NON_SUBMITTABLE = "gray";
+const COLOR_PROP_READONLY = "black";
+const COLOR_PROP_NON_SUBMITTABLE = "black";
+const COLOR_PROP_COMMENTED = "gray";
 const FORMAT_SEARCHABLE_PROP = "bold,italic,underline";
-const SELECTED_PROP_KEYS_FOR_TOOLTIP = ["title", "description", "comment", "type", "enum"];
+const SELECTED_PROP_KEYS_FOR_TOOLTIP = ["title", "description", "comment", "type"];
 const DEFAULT_BASE_TEMPLATE = {
-  [HEADER_PROP_SKIP]: null,
-  [HEADER_PROP_METHOD]: null,
-  [HEADER_PROP_ERROR]: null,
-  [HEADER_PROP_HELP_TEXT]: null,
-  [HEADER_PROP_GET_URL]: null
+  [HEADER_COMMENTED_PROP_SKIP]: null,
+  [HEADER_COMMENTED_PROP_ERROR]: null,
 };
+
+function isValidProfileName(profileName) {
+  for(var name of ALL_PROFILES) {
+    // make capitalized sentence from snakecase 
+    var capitalizedName = capitalizeWord(snakeToCamel(name));
+    if ([name, capitalizedName].includes(profileName)) {
+      Logger.log(profileName + " " + name + " " + capitalizedName);
+      return true;
+    }
+  }
+}
 
 function makeProfileUrl(profileName, endpoint, format="json") {
   switch(format) {
@@ -146,10 +155,13 @@ function makeProfileUrl(profileName, endpoint, format="json") {
       return `${endpoint}/profiles/${profileName}?format=json`;
     default:
       return `${endpoint}/profiles/${profileName}`;
-  }  
+  }
 }
 
 function isSearchableProp(profile, prop) {
+  if (!profile || prop.startsWith("#")) {
+    return false;
+  }
   var propInProfile = profile["properties"][prop];
   // if linkTo (single object) or items.linkTo (array) exists
   // then it's searchable
@@ -169,16 +181,11 @@ function makeSearchUrlForProp(profile, prop, endpoint) {
   return `${endpoint}/search/?type=${linkTo}`
 }
 
-function makeSearchUrl(sheet, profile, endpoint) {
-  // make search URL from the current column of the current sheet
-  // find current cell and its header value  
-  var currentCol = SpreadsheetApp.getActiveSheet().getActiveCell().getColumn();
-  if (!currentCol) {
-    Logger.log("Cannot find column for a selected cell.");
+function getPropType(profile, prop) {
+  if (!profile || !profile["properties"].hasOwnProperty(prop)) {
     return;
   }
-  var currentColHeaderValue = getCellValue(sheet, HEADER_ROW, currentCol);
-  return makeSearchUrlForProp(profile, currentColHeaderValue, endpoint);
+  return profile["properties"][prop]["type"];
 }
 
 function isRequiredProp(profile, prop) {
@@ -203,13 +210,34 @@ function isNonEditableProp(profile, prop) {
   return isReadonlyProp(profile, prop) || isNonSubmittableProp(profile, prop);
 }
 
+function isCommentedProp(profile, prop) {
+  return prop.startsWith("#");
+}
+
 function hasDoNotSubmitInPropComment(profile, prop) {
   var propInProfile = profile["properties"][prop];
   return propInProfile.hasOwnProperty("comment") &&
     propInProfile["comment"].toLowerCase().startsWith("do not submit.");
 }
 
+function getIdentifyingPropForProfile(profile) {
+  // get preferred identifying property ("accession" in most cases and "uuid" otherwise)
+  return PRIORITY_INDENTIFYING_PROP
+    .filter(prop => profile["identifyingProperties"].includes(prop))[0];
+}
+
+function findIdentifyingPropInHeader(sheet, profile) {
+  for (var prop of PRIORITY_INDENTIFYING_PROP) {
+    if (findColumnByHeaderValue(sheet, prop)) {
+      return prop;
+    }
+  }
+}
+
 function getColorForProp(profile, prop) {
+  if (isCommentedProp(profile, prop)) {
+    return COLOR_PROP_COMMENTED;
+  }
   if (isRequiredProp(profile, prop)) {
     return COLOR_PROP_REQUIRED;
   }
@@ -265,19 +293,11 @@ function makeTooltipForProp(profile, prop) {
   var propInProfile = profile["properties"][prop];
 
   var tooltip = isSearchableProp(profile, prop) ?
-    "SEARCH AVAILABLE\n\nSelect any cell in this column and then go to menu 'ENCODE' - 'Search'\n\n" : "";
+    "SEARCH AVAILABLE\n\n" : "";
 
-  // tooltip += JSON.stringify(
-  //   SELECTED_PROP_KEYS_FOR_TOOLTIP
-  //   .filter(key => propInProfile.hasOwnProperty(key))
-  //   .reduce((obj, key) => {
-  //     return {...obj, [key]: propInProfile[key]};
-  //   }, {}),
-  //   null, HELP_TEXT_INDENT
-  // );
   tooltip += SELECTED_PROP_KEYS_FOR_TOOLTIP
     .filter(key => propInProfile.hasOwnProperty(key))
-    .map(key => {return `${key}: ${propInProfile[key]}`})
+    .map(key => {return `* ${key}\n${propInProfile[key]}`})
     .join('\n\n');
 
   return tooltip;
@@ -292,10 +312,9 @@ function setColorAndTooltipForHeaderProp(sheet, profile, prop, col) {
     getTooltipForCommentedProp(prop) : makeTooltipForProp(profile, prop);
 
   setCellTooltip(sheet, HEADER_ROW, col, tooltip);
+  setCellColor(sheet, HEADER_ROW, col, getColorForProp(profile, prop));
 
   if (!prop.startsWith("#")) {
-    setCellColor(sheet, HEADER_ROW, col, getColorForProp(profile, prop));
-    
     if (isSearchableProp(profile, prop)) {
       setCellFormat(sheet, HEADER_ROW, col, FORMAT_SEARCHABLE_PROP);
     }
@@ -327,11 +346,22 @@ function addDropdownMenuToDataCell(sheet, profile, prop, col) {
 function highlightHeaderAndDataCell(sheet, profile) {
   var currentHeaderProps = getCellValuesInRow(sheet, HEADER_ROW);
 
+  var missingProps = [];
   for (var [i, prop] of currentHeaderProps.entries()) {
     var col = i + 1;
+
+    if (!isCommentedProp(profile, prop) && !profile["properties"].hasOwnProperty(prop)) {
+      Logger.info(
+        `Property ${prop} does not exist in current profile\n\nPossible mismatch between profile and accession?`
+      );
+      missingProps.push(prop);
+      continue;
+    }    
+
     setColorAndTooltipForHeaderProp(sheet, profile, prop, col);
     addDropdownMenuToDataCell(sheet, profile, prop, col);
   }
+  return missingProps;
 }
 
 function makeTemplateMetadataObjectFromProfile(profile, template=DEFAULT_BASE_TEMPLATE) {
@@ -340,16 +370,12 @@ function makeTemplateMetadataObjectFromProfile(profile, template=DEFAULT_BASE_TE
   // otherwise use null for prop
   var result = template;
   for (var prop of Object.keys(profile["properties"])) {
-    if (isNonEditableProp(profile, prop) || hasDoNotSubmitInPropComment(profile, prop)) {
+    if (isNonEditableProp(profile, prop)) {
       continue;
     }
     // null if default does not exist
     result[prop] = getDefaultForProp(profile, prop);
   }
 
-  // add accession by default even though it's not editable
-  result[HEADER_PROP_ACCESSION] = "";
-
   return result;
 }
-

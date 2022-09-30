@@ -50,4 +50,3 @@ function restPut(url, payloadJson, method="PUT") {
 function restPost(url, payloadJson) {
   return restPut(url, payloadJson, method="POST");
 }
-

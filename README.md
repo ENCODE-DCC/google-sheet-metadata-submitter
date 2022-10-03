@@ -14,9 +14,16 @@ Go to portail's Profile page and get credentials pair (username/password).
 Go to `ENCODE` - `Authorize`. Credentials entered here will be shared for all sheets in the whole spreadsheet, but **NOT SHARED WITH OTHERS EVEN WHEN THEY MAKE A COPY OF YOUR SPREADSHEET**.
 
 
+## Set endpoints
+
+Set endpoint for WRITE actions. Go to `ENCODE` - `Set endpoint for WRITE actions`. The endpoint for WRITE actions is set as the test server (`https://test.encodedcc.org`) by default.
+
+
 ## Set a profile name
 
 Go to `ENCODE` - `Set profile name` and enter a valid profile name. A profile name in snakecase or capitalized CamelCase are allowed. For example, `experiment`, `Expertiment`, `biosample_type` and `BiosampleType`. Such profile name should be set for each sheet.
+
+
 
 
 ## Check your current profile

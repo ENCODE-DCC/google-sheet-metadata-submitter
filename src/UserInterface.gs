@@ -6,6 +6,7 @@ const DEFAULT_ENDPOINT_WRITE = ENDPOINT_TEST;
 const KEY_ENDPOINT_READ = "endpointRead";
 const KEY_ENDPOINT_WRITE = "endpointWrite";
 const KEY_PROFILE_NAME = "profileName";
+const URL_GITHUB = "https://github.com/encode-DCC/google-sheet-metadata-submitter";
 
 
 function onOpen() {
@@ -30,6 +31,8 @@ function onOpen() {
   menu.addItem("Set endpoint for WRITE actions", "setEndpointWrite");
   menu.addItem("Set profile name", "setProfileName");
   menu.addItem("Open profile page", "openProfilePage");
+  menu.addSeparator();
+  menu.addItem("Open tool's github page for README", "openToolGithubPage");
   menu.addToUi();
 }
 
@@ -88,6 +91,10 @@ function openProfilePage() {
   openUrl(
     makeProfileUrl(getProfileName(), getEndpointRead(), format="page")
   );
+}
+
+function openToolGithubPage() {
+  openUrl(URL_GITHUB);
 }
 
 function showSheetAndHeaderInfo() {

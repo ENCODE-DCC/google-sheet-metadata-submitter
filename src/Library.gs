@@ -1,9 +1,3 @@
-const DEBUG = false;
-const DEBUG_AUTO_YES = false;
-// const DEBUG = true;
-// const DEBUG_AUTO_YES = true;
-
-
 function getType(p) {
     if (Array.isArray(p)) return "array";
     else if (typeof p == "string") return "string";

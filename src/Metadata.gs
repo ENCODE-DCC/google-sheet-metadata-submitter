@@ -30,7 +30,7 @@ function getNumMetadataInSheet(sheet) {
 function makeMetadataUrl(method, profileName, endpoint, identifyingVal) {
   switch(method) {
     case "GET":
-      return `${endpoint}/${profileName}/${identifyingVal}/?format=json&frame=edit`;
+      return `${endpoint}/${profileName}/${identifyingVal}/?format=json&frame=object`;
     case "PUT":
       return `${endpoint}/${profileName}/${identifyingVal}`;
     case "POST":
@@ -54,9 +54,20 @@ function getMetadataFromPortal(identifyingVal, identifyingProp, profileName, end
 
   var responseJson = JSON.parse(response.getContentText());
   if (error === 200) {
-    // if no error, merge parsed JSON to row object
+    // automatically set #skip as 1 to prevent duplicate GET
     object[HEADER_COMMENTED_PROP_SKIP] = 1;
-    object = {...object, ...responseJson};
+
+    // filter out
+    // - "nonSubmittable" properties
+    // - properties that are not present in the profile
+    var profile = getProfile(profileName, endpoint);
+    var filteredResponseJson = Object.keys(responseJson)
+      .filter((prop) => profile["properties"].hasOwnProperty(prop))
+      .filter((prop) => !isNonSubmittableProp(profile, prop))
+      .reduce((cur, prop) => { return Object.assign(cur, { [prop]: responseJson[prop] })}, {});
+
+    // then merge it with commented properties
+    object = {...object, ...filteredResponseJson};
   }
   else {
     // if error, write helpText to provide debugging information
@@ -94,9 +105,6 @@ function getSortedProps(props, profile, propPriority=DEFAULT_PROP_PRIORITY) {
   }
   return sortedProps;
 }
-
-
-getIdentifyingPropForProfile
 
 function updateSheetWithMetadataFromPortal(sheet, profileName, endpointForGet, endpointForProfile) {
   var profile = getProfile(profileName, endpointForProfile);
@@ -174,7 +182,6 @@ function putSheetToPortal(sheet, profileName, endpointForPut, endpointForProfile
 
     switch(method) {
       case "PUT":
-        
         var url = makeMetadataUrl(method, profileName, endpointForPut, json[identifyingProp]);
         var response = restPut(url, payloadJson=json);
         break;

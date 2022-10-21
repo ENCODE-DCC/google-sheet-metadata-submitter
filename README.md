@@ -1,80 +1,74 @@
-### ENCODE metadata submitter
+## ENCODE/IGVF metadata submitter
 
-https://docs.google.com/spreadsheets/d/1mmTsrT4tnD4fRAf7nkdduq810nZvMQxZy0ga4Z_zK74/edit?usp=sharing
+https://docs.google.com/spreadsheets/d/1Pm1f-CPmWwK1xTYNTFlzLtYvtHlvSAPkPUUWXlmtQJM/edit?usp=sharing
 
-This script converts metadata between TSV (rows on sheet) and JSON (portal's format) and communicates with ENCODE portal.
-
-
-### Grant permission first
-
-Grant permissions for the script to access your data on the sheet/account.
+This spreadsheet with built-in Google Apps Script converts metadata between TSV (rows on sheet) and JSON (portal's data format) and communicates with ENCODE and IGVF portals.
 
 
-### Authorization (username/password)
+## Configuration
 
-Go to portal's Profile page and get credentials pair (username/password).
-Go to `ENCODE` - `Authorize`. Credentials entered here will be shared for all sheets in the whole spreadsheet, but **NOT SHARED WITH OTHERS EVEN WHEN THEY MAKE A COPY OF YOUR SPREADSHEET**.
+Go to menu `ENCODE/IGVF` -> `Settings & auth`.
 
 
-### Set endpoints
+### Authorization
 
-You can set endpoints for READ and WRITE actions. Go to `ENCODE` - `Set endpoint for WRITE actions`. The endpoint for WRITE actions is set as the test server (`https://test.encodedcc.org`) by default.
+Authenticate yourself for a platform of interest (ENCODE or IGVF). Create/get a key/password pair from `Profile` menu on the portal.
+
+Credentials information is stored in your account's `Properties` object so that it's not shared with others who co-work on your spreadsheet or who make a copy of your spreadsheet.
+
+
+### Set endpoints for READs and WRITEs
+
+Set endpoints for READ (GET) and WRITE (POST/PATCH/PUT) actions. ENCODE and IGVF production/test endpoints are supported.
 
 
 ### Set a profile name
 
-Go to `ENCODE` - `Set profile name` and enter a valid profile name. A profile name in snakecase or capitalized CamelCase are allowed. For example, `experiment`, `Expertiment`, `biosample_type` and `BiosampleType`. Such profile name should be set for each sheet.
+Set a profile name. No plural (s) is allowed. Use Capitalized CamelCase or snake_case for a profile name.
 
 
-### Check your current profile
-
-Go to `ENCODE` - `Show sheet/header info`.
+## Functions
 
 
-### Special commented headers
+Create a new sheet first.
 
-Data values under commented headers will be ignored and not be sent to the portal.
-
-- `#skip`: For all REST actions (GET/PUT/POST). You can additionally make `#skip` header and set row's data cell as 1 to skip REST actions for that specific row.
-- `#error`: For debugging purposese. This is filled with `HTTP ERROR CODE` + `HELP TEXT MESSAGE` for any recent REST action.
+Functions are implemented as REST-ful requests. There are two classes (`USER` and `ADMIN`) for such REST-ful actions. `ADMIN` functions are for DACC administors only. Use functions marked with `USER` and then you will be safe.
 
 
-### Make a POST template based on profile
 
-Once you set a valid profile name, go to `ENCODE` - `Make new template row`. This will make a new row with empty/default values for each property. This templatre include ALL editable properties for a given profile. Some of them are shown but not editable (e.g. `schema_version` and `accession`).
+### Special commented header
 
+Basically, all commented headers and data under them will be ignored when communicating with the portal. That means you can have any commented header properties for your own purpose except for the following special ones.
 
-### Apply profile to sheet
-
-You can add any new column (property) to the sheet and do `ENCODE` - `Apply profile to sheet` then the script will check if such new property exists in the given profile and add toolip to header and dropdown menu to `enum` type data cells.
-
-
-### GET metadata from portal
-
-Make a new header with a proper identifying property (`accession` or `uuid` according to the given profile). And then define accession/uuids you want to retrieve from the portal under the header. Go to `ENCODE` - `Get metadata for all raws`. 
+- `#skip`: If set as `1` such row will be skipped for any READ/WRITE REST actions.
+- `#response`: This shows response from the portal which will be very helpful for debugging validation problems.
 
 
-### PUT metadata to portal
+### Make a new template
 
-GET metadata from portal first and then edit it. Set `#skip` as `0` if it is present and then go to `ENCODE` - `PUT all rows to the portal` .
-
-
-### POST metadata to portal
-
-Starting from a template or existing metadata (retrieved from GET), set `#skip` as `0` if it is present and then go to `ENCODE` - `POST all rows to the portal` .
+This will make a new template with all editable headers defined and colored. A new empty (or filled with default values) data row will also be added to the sheet. 
 
 
-### How to debug?
+### GET (USER/ADMIN)
 
-Any REST (GET/PUT/POST) action will return `HTTP ERROR CODE` + `HELP TEXT MESSAGE` in the `#error` column. Fix your problem with the help message and resubmit.
-
-
-### How to search for items on portal
-
-Go to a data cell and hover your mouse on the header (1st row) of the column and check if it's shown as `SEARCH AVAILABLE` in its tooltop. On a data cell that you want to edit, go to `ENCODE` - `Search`. Then you will see a dialog box to edit your values.
+This action uses endpoint for READ. Define any identifying property (e.g. `accession`, `uuid` or `name`) in the header (first) row and write values under it. For each row, retrieve metadata for the corresponding ID from the portal.
 
 
-### How to manage multiple metadata on a single sheet
+### PATCH (USER/ADMIN)
 
-- Each row is converted into a JSON format and empty value's property will be ignored. Such JSON will be finally submitted to the portal individually.
-- For each row, `HTTP ERROR CODE` + `HELP TEXT` for the most recent REST action will be written back to the column `#error` for debugging.
+This action uses endpoint for WRITE. This requires at least one identifying property defined in the header and its value data row. For each row, replace properties, which are defined on the sheet only, on the portal with those on the sheet. So this function will not delete any properties from the portal.
+
+
+### POST (USER/ADMIN)
+
+This action uses endpoint for WRITE. It's recommended to use `Make a new template` or `GET metadata` from the portal and start from there. Make sure that all required properties (red) are defined on the header and data rows. For each row, post s new submission to the portal. You will see `201` in the `#response` if it's successful.
+
+
+### PUT (ADMIN)
+
+This action uses endpoint for WRITE. This requires at least one identifying property defined in the header and its value data row. For each row, replace ALL properties on the portal with those on the sheet. So this function will remove any missing properties from the portal. Use it at your own risk.
+
+
+### Search
+
+Go to any data cell under SEARCHABLE property (Italic+Bold properties in header) and click on the menu `Search`.

@@ -39,8 +39,16 @@ function snakeToCamel(snake) {
   );
 }
 
+function camelToSnake(camel) {
+  return camel.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
 function capitalizeWord(word) {
   return word[0].toUpperCase() + word.substr(1);
+}
+
+function uncapitalizeWord(word) {
+  return word[0].toLowerCase() + word.substr(1);
 }
 
 function alertBoxOkCancel(prompt) {
@@ -79,4 +87,16 @@ function openUrl( url ){
   +'</html>')
   .setWidth( 90 ).setHeight( 1 );
   SpreadsheetApp.getUi().showModalDialog( html, "Opening ..." );
+}
+
+function validateJson(json, profile) {
+  // there is no such library for Google Apps Script
+  // so use external JSON schema validator
+  var params = {
+    method: "POST",
+    contentType: "application/json",
+    muteHttpExceptions: true,
+    payload: JSON.stringify({schema: profile, json: json})
+  };
+  return UrlFetchApp.fetch("https://assertible.com/json", params);
 }

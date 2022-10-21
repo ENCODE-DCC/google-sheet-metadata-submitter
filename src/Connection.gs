@@ -1,25 +1,47 @@
-const PROPERTY_USERNAME = "username";
-const PROPERTY_PASSWORD = "password";
+const PROPERTY_ENCODE_USERNAME = "encodeUsername";
+const PROPERTY_ENCODE_PASSWORD = "encodePassword";
+const PROPERTY_IGVF_USERNAME = "igvfUsername";
+const PROPERTY_IGVF_PASSWORD= "igvfPassword";
 
 
-function getUsername() {
+function getUsername(server) {
   var userProperties = PropertiesService.getUserProperties();
-  return userProperties.getProperty(PROPERTY_USERNAME);
+  switch(server) {
+    case ENCODE:
+      return userProperties.getProperty(PROPERTY_ENCODE_USERNAME);
+    case IGVF:
+      return userProperties.getProperty(PROPERTY_IGVF_USERNAME);
+  }
 }
 
-function setUsername(username) {
+function setUsername(username, server) {
   var userProperties = PropertiesService.getUserProperties();
-  return userProperties.setProperty(PROPERTY_USERNAME, username);
+  switch(server) {
+    case ENCODE:
+      return userProperties.setProperty(PROPERTY_ENCODE_USERNAME, username);
+    case IGVF:
+      return userProperties.setProperty(PROPERTY_IGVF_USERNAME, username);
+  }  
 }
 
-function getPassword() {
+function getPassword(server) {
   var userProperties = PropertiesService.getUserProperties();
-  return userProperties.getProperty(PROPERTY_PASSWORD);
+  switch(server) {
+    case ENCODE:
+      return userProperties.getProperty(PROPERTY_ENCODE_PASSWORD);
+    case IGVF:
+      return userProperties.getProperty(PROPERTY_IGVF_PASSWORD);
+  }  
 }
 
-function setPassword(password) {
+function setPassword(password, server) {
   var userProperties = PropertiesService.getUserProperties();
-  return userProperties.setProperty(PROPERTY_PASSWORD, password);
+  switch(server) {
+    case ENCODE:
+      return userProperties.setProperty(PROPERTY_ENCODE_PASSWORD, password);
+    case IGVF:
+      return userProperties.setProperty(PROPERTY_IGVF_PASSWORD, password);
+  }
 }
 
 function makeAuthHeaders(username, password) {
@@ -28,25 +50,24 @@ function makeAuthHeaders(username, password) {
 
 function restGet(url) {
   var params = {"method" : "GET", "contentType": "application/json", "muteHttpExceptions": true};
-  var username = getUsername();
-  var password = getPassword();
+  var server = getServerFromUrl(url);
+  var username = getUsername(server);
+  var password = getPassword(server);
   if (username && password) {
     params["headers"] = makeAuthHeaders(username, password);
   }
   return UrlFetchApp.fetch(url, params);
 }
 
-function restPut(url, payloadJson, method="PUT") {
+function restSubmit(url, payloadJson, method) {
   var params = {"method" : method, "contentType": "application/json", "muteHttpExceptions": true};
-  var username = getUsername();
-  var password = getPassword();
+  var server = getServerFromUrl(url);
+  var username = getUsername(server);
+  var password = getPassword(server);
   if (username && password) {
     params["headers"] = makeAuthHeaders(username, password);
   }
+  Logger.log(params);
   params["payload"] = JSON.stringify(payloadJson);
   return UrlFetchApp.fetch(url, params);
-}
-
-function restPost(url, payloadJson) {
-  return restPut(url, payloadJson, method="POST");
 }

@@ -1,5 +1,5 @@
 const SEARCH_BOX_WIDTH = 700;
-const SEARCH_BOX_HEIGHT = 450;
+const SEARCH_BOX_HEIGHT = 500;
 
 
 function openSearch(url, prop, propType, endpoint, selectedCellValue) {

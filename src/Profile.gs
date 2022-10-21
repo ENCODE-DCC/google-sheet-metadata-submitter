@@ -1,145 +1,55 @@
-/*
-ALL_PROFILES from https://www.encodeproject.org/profiles/?format=json
-Schema version 36 (snapshotted at 09/21/2022)
-*/
+const HEADER_PROP_ACCESSION = "accession";
+const HEADER_PROP_UUID = "uuid";
+const HEADER_PROP_NAME = "name";
+const HEADER_PROP_ALIASES = "aliases";
+const HEADER_PROP_AWARD = "award";
+const HEADER_PROP_LAB = "lab";
 
-const ALL_PROFILES = [
-  "award",
-  "document",
-  "lab",
-  "library",
-  "organism",
-  "platform",
-  "publication",
-  "software",
-  "software_version",
-  "source",
-  "treatment",
-  "access_key_admin",
-  "analysis",
-  "quality_standard",
-  "antibody_lot",
-  "biosample",
-  "biosample_type",
-  "cart",
-  "antibody_characterization",
-  "biosample_characterization",
-  "donor_characterization",
-  "genetic_modification_characterization",
-  "aggregate_series",
-  "annotation",
-  "collection_series",
-  "computational_model",
-  "differential_accessibility_series",
-  "differentiation_series",
-  "disease_series",
-  "experiment_series",
-  "functional_characterization_series",
-  "gene_silencing_series",
-  "matched_set",
-  "multiomics_series",
-  "organism_development_series",
-  "project",
-  "publication_data",
-  "pulse_chase_time_series",
-  "reference",
-  "reference_epigenome",
-  "replication_timing_series",
-  "single_cell_rna_series",
-  "single_cell_unit",
-  "treatment_concentration_series",
-  "treatment_time_series",
-  "ucsc_browser_composite",
-  "fly_donor",
-  "human_donor",
-  "manatee_donor",
-  "mouse_donor",
-  "worm_donor",
-  "experiment",
-  "replicate",
-  "file",
-  "functional_characterization_experiment",
-  "gene",
-  "genetic_modification",
-  "image",
-  "page",
-  "analysis_step",
-  "analysis_step_run",
-  "analysis_step_version",
-  "pipeline",
-  "atac_alignment_enrichment_quality_metric",
-  "atac_alignment_quality_metric",
-  "atac_library_complexity_quality_metric",
-  "atac_peak_enrichment_quality_metric",
-  "atac_replication_quality_metric",
-  "bismark_quality_metric",
-  "bpnet_quality_metric",
-  "bru_library_quality_metric",
-  "chia_pet_alignment_quality_metric",
-  "chia_pet_chr_interactions_quality_metric",
-  "chia_pet_peak_enrichment_quality_metric",
-  "chip_alignment_enrichment_quality_metric",
-  "chip_alignment_samstat_quality_metric",
-  "chip_library_quality_metric",
-  "chip_peak_enrichment_quality_metric",
-  "chip_replication_quality_metric",
-  "chipseq_filter_quality_metric",
-  "complexity_xcorr_quality_metric",
-  "correlation_quality_metric",
-  "cpg_correlation_quality_metric",
-  "dnase_alignment_quality_metric",
-  "dnase_footprinting_quality_metric",
-  "duplicates_quality_metric",
-  "edwbamstats_quality_metric",
-  "filtering_quality_metric",
-  "gembs_alignment_quality_metric",
-  "gencode_category_quality_metric",
-  "gene_quantification_quality_metric",
-  "gene_type_quantification_quality_metric",
-  "generic_quality_metric",
-  "hic_quality_metric",
-  "histone_chipseq_quality_metric",
-  "hotspot_quality_metric",
-  "idr_quality_metric",
-  "idr_summary_quality_metric",
-  "long_read_rna_mapping_quality_metric",
-  "long_read_rna_quantification_quality_metric",
-  "mad_quality_metric",
-  "micro_rna_mapping_quality_metric",
-  "micro_rna_quantification_quality_metric",
-  "samtools_flagstats_quality_metric",
-  "samtools_stats_quality_metric",
-  "sc_atac_alignment_quality_metric",
-  "sc_atac_analysis_quality_metric",
-  "sc_atac_counts_summary_quality_metric",
-  "sc_atac_library_complexity_quality_metric",
-  "sc_atac_multiplet_quality_metric",
-  "sc_atac_read_quality_metric",
-  "scrna_seq_counts_summary_quality_metric",
-  "segway_quality_metric",
-  "star_quality_metric",
-  "star_solo_quality_metric",
-  "trimming_quality_metric",
-  "rna_expression",
-  "target",
-  "transgenic_enhancer_experiment",
-  "user"
+// determines the column order of properties in the header
+const DEFAULT_PROP_PRIORITY = [
+  HEADER_COMMENTED_PROP_SKIP,
+  HEADER_COMMENTED_PROP_RESPONSE,
+  HEADER_PROP_ACCESSION,
+  HEADER_PROP_UUID,
+  HEADER_PROP_NAME,
+  HEADER_PROP_ALIASES,
+  HEADER_PROP_AWARD,
+  HEADER_PROP_LAB,
 ];
+
+// https://github.com/ENCODE-DCC/encoded/blob/dev/docs/auth.rst#permissions
+// This is for "permission" property
+const ADMIN_OR_SYSTEM_PERMISSIONS = [
+  "add_unvalidated",
+  "edit_unvalidated",
+  "expand",
+  "impersonate",
+  "import_items",
+  "index",
+  "submit_for_any",
+  "view_raw"
+]
+
 const COLOR_PROP_DEFAULT = "black";
 const COLOR_PROP_REQUIRED = "red";
 const COLOR_PROP_INDENTIFYING = "blue";
-const COLOR_PROP_READONLY = "black";
-const COLOR_PROP_NON_SUBMITTABLE = "black";
-const COLOR_PROP_COMMENTED = "gray";
-const FORMAT_SEARCHABLE_PROP = "bold,italic,underline";
-const SELECTED_PROP_KEYS_FOR_TOOLTIP = ["title", "description", "comment", "type"];
-const DEFAULT_BASE_TEMPLATE = {
-  [HEADER_COMMENTED_PROP_SKIP]: null,
-  [HEADER_COMMENTED_PROP_ERROR]: null,
-};
+const COLOR_PROP_READONLY = "lightgray";
+const COLOR_PROP_HAS_DO_NOT_SUBMIT_IN_COMMENT = "lightgray";
+const COLOR_PROP_NOT_SUBMITTABLE = "lightgray";
+const COLOR_PROP_COMMENTED = "black";
+const FORMAT_SEARCHABLE_PROP = "bold,underline";
 
-function isValidProfileName(profileName) {
-  for(var name of ALL_PROFILES) {
+const SELECTED_PROP_KEYS_FOR_TOOLTIP = [
+  "title",
+  "description",
+  "comment",
+  "type",
+  "readonly",
+  "notSubmittable"
+];
+
+function isValidProfileName(profileName, endpoint) {
+  for(var name of getAllProfiles(endpoint)) {
     // make capitalized sentence from snakecase 
     var capitalizedName = capitalizeWord(snakeToCamel(name));
     if ([name, capitalizedName].includes(profileName)) {
@@ -178,7 +88,14 @@ function makeSearchUrlForProp(profile, prop, endpoint) {
   var linkTo = propInProfile.hasOwnProperty("linkTo") ?
     propInProfile["linkTo"] : propInProfile["items"]["linkTo"];
 
-  return `${endpoint}/search/?type=${linkTo}`
+  if (isEncodeEndpoint(endpoint)) {
+    return `${endpoint}/search/?type=${linkTo}`;
+
+  } else if (endpoint === ENDPOINT_IGVF_SEARCH_UI) {
+    // linkTo is a profile name in capitalized CamelCase
+    // convert it to IGVF's format: snakecase with - + "s"(plural)    
+    return `${endpoint}/${camelToSnake(uncapitalizeWord(linkTo)).replace(/_/g,"-") + "s"}`;
+  }
 }
 
 function getPropType(profile, prop) {
@@ -201,13 +118,13 @@ function isReadonlyProp(profile, prop) {
   return propInProfile.hasOwnProperty("readonly") && propInProfile["readonly"];
 }
 
-function isNonSubmittableProp(profile, prop) {
+function isNotSubmittableProp(profile, prop) {
   var propInProfile = profile["properties"][prop];
   return propInProfile.hasOwnProperty("notSubmittable") && propInProfile["notSubmittable"];
 }
 
 function isNonEditableProp(profile, prop) {
-  return isReadonlyProp(profile, prop) || isNonSubmittableProp(profile, prop);
+  return isReadonlyProp(profile, prop) || isNotSubmittableProp(profile, prop);
 }
 
 function isCommentedProp(profile, prop) {
@@ -217,21 +134,30 @@ function isCommentedProp(profile, prop) {
 function hasDoNotSubmitInPropComment(profile, prop) {
   var propInProfile = profile["properties"][prop];
   return propInProfile.hasOwnProperty("comment") &&
-    propInProfile["comment"].toLowerCase().startsWith("do not submit.");
+    propInProfile["comment"].toLowerCase().startsWith("do not submit");
 }
 
-function getIdentifyingPropForProfile(profile) {
-  // get preferred identifying property ("accession" in most cases and "uuid" otherwise)
-  return PRIORITY_INDENTIFYING_PROP
-    .filter(prop => profile["identifyingProperties"].includes(prop))[0];
+function isAdminOrSystemProp(profile, prop) {
+  var propInProfile = profile["properties"][prop];
+  return propInProfile.hasOwnProperty("permission")
+    && ADMIN_OR_SYSTEM_PERMISSIONS.includes(propInProfile["permission"]);
 }
 
-function findIdentifyingPropInHeader(sheet, profile) {
-  for (var prop of PRIORITY_INDENTIFYING_PROP) {
-    if (findColumnByHeaderValue(sheet, prop)) {
-      return prop;
-    }
+function isGettableProp(profile, prop, forAdmin=false) {
+  if (!profile["properties"].hasOwnProperty(prop)) {
+    return false;
   }
+  if (forAdmin) {
+    return !isNotSubmittableProp(profile, prop);
+  } else {
+    return !isNonEditableProp(profile, prop)
+      && !hasDoNotSubmitInPropComment(profile, prop)
+      && !isAdminOrSystemProp(profile, prop)
+  }
+}
+
+function isPostableProp(profile, prop, forAdmin=false) {
+  return isGettableProp(profile, prop, forAdmin);
 }
 
 function getColorForProp(profile, prop) {
@@ -247,8 +173,11 @@ function getColorForProp(profile, prop) {
   if (isReadonlyProp(profile, prop)) {
     return COLOR_PROP_READONLY;
   }
-  if (isNonSubmittableProp(profile, prop)) {
-    return COLOR_PROP_NON_SUBMITTABLE;
+  if (hasDoNotSubmitInPropComment(profile, prop)) {
+    return COLOR_PROP_HAS_DO_NOT_SUBMIT_IN_COMMENT;
+  }
+  if (isNotSubmittableProp(profile, prop)) {
+    return COLOR_PROP_NOT_SUBMITTABLE;
   }
   return COLOR_PROP_DEFAULT;
 }
@@ -265,7 +194,9 @@ function getDefaultForProp(profile, prop) {
 function getProfile(profileName, endpoint) {
   var url = makeProfileUrl(profileName, endpoint);
   var response = restGet(url);
-  return JSON.parse(response.getContentText());
+  if (response.getResponseCode() === 200) {
+    return JSON.parse(response.getContentText());
+  }
 }
 
 function typeCastValueByProfile(profile, prop, val) {
@@ -285,6 +216,17 @@ function typeCastJsonValuesByProfile(profile, json, keepCommentedProps) {
       continue;
     }
     result[prop] = typeCastValueByProfile(profile, prop, json[prop]);
+  }
+  return result;
+}
+
+function filterOutCommentedProps(json) {
+  var result = {};
+  for (var prop of Object.keys(json)) {
+    if (prop.startsWith("#")) {
+      continue;
+    }
+    result[prop] = json[prop];
   }
   return result;
 }
@@ -338,6 +280,10 @@ function addDropdownMenuToDataCell(sheet, profile, prop, col) {
 
   var enums = propInProfile["enum"];
   var lastRow = getLastRow(sheet);
+  // if lastRow is just the header then set lastRow as next line
+  if (lastRow === HEADER_ROW) {
+    lastRow = HEADER_ROW + 1;
+  }
   var range = getRange(sheet, HEADER_ROW + 1, col, lastRow - HEADER_ROW, 1);
   var rule = SpreadsheetApp.newDataValidation().requireValueInList(enums).build();  
   range.setDataValidation(rule);
@@ -356,7 +302,7 @@ function highlightHeaderAndDataCell(sheet, profile) {
       );
       missingProps.push(prop);
       continue;
-    }    
+    }
 
     setColorAndTooltipForHeaderProp(sheet, profile, prop, col);
     addDropdownMenuToDataCell(sheet, profile, prop, col);
@@ -364,18 +310,3 @@ function highlightHeaderAndDataCell(sheet, profile) {
   return missingProps;
 }
 
-function makeTemplateMetadataObjectFromProfile(profile, template=DEFAULT_BASE_TEMPLATE) {
-  // add all properties except for non-editable ones
-  // if default exists for a prop then use it
-  // otherwise use null for prop
-  var result = template;
-  for (var prop of Object.keys(profile["properties"])) {
-    if (isNonEditableProp(profile, prop)) {
-      continue;
-    }
-    // null if default does not exist
-    result[prop] = getDefaultForProp(profile, prop);
-  }
-
-  return result;
-}

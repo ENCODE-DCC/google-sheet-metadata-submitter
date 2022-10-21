@@ -1,52 +1,109 @@
-const ENDPOINT_PRODUCTION = "https://www.encodeproject.org";
-const ENDPOINT_TEST = "https://test.encodedcc.org";
-const ALL_ENDPOINTS = [ENDPOINT_PRODUCTION, ENDPOINT_TEST];
-const DEFAULT_ENDPOINT_READ = ENDPOINT_PRODUCTION;
-const DEFAULT_ENDPOINT_WRITE = ENDPOINT_TEST;
+const PROPERTY_DEFAULT_PROFILE_NAME = "defaultProfileName";
+
 const KEY_ENDPOINT_READ = "endpointRead";
 const KEY_ENDPOINT_WRITE = "endpointWrite";
 const KEY_PROFILE_NAME = "profileName";
-const URL_GITHUB = "https://github.com/encode-DCC/google-sheet-metadata-submitter";
 
+const URL_GITHUB = "https://github.com/encode-DCC/google-sheet-metadata-submitter";
 
 function onOpen() {
   // create custom menu
-  var menu = SpreadsheetApp.getUi().createMenu("ENCODE");
+  var menu = SpreadsheetApp.getUi().createMenu("ENCODE/IGVF");
   menu.addItem("Search", "search");
   menu.addSeparator();
-  menu.addItem("Show sheet/header info", "showSheetAndHeaderInfo");
+  menu.addItem("Show sheet info & header legend", "showSheetInfoAndHeaderLegend");
   menu.addSeparator();
-  menu.addItem("Apply profile to sheet", "applyProfileToSheet");
-  menu.addItem("Make new template row", "makeTemplate");
+  submenuSettingsAuth = SpreadsheetApp.getUi().createMenu("⚙️ Settings & auth.");
+  submenuSettingsAuthGlobal = SpreadsheetApp.getUi().createMenu("Global settings & auth");
+  submenuSettingsAuthGlobal.addItem("Authorize for ENCODE", "authorizeForEncode");
+  submenuSettingsAuthGlobal.addItem("Authorize for IGVF", "authorizeForIgvf");
+  submenuSettingsAuthGlobal.addItem("Set default endpoint for READs (GET)", "setDefaultEndpointRead");
+  submenuSettingsAuthGlobal.addItem("Set default endpoint for WRITEs (POST/PATCH/PUT)", "setDefaultEndpointWrite");
+  submenuSettingsAuthGlobal.addItem("Set default profile name", "setDefaultProfileName");
+  submenuSettingsAuth.addSubMenu(submenuSettingsAuthGlobal);
+  submenuSettingsAuthSheet = SpreadsheetApp.getUi().createMenu("Settings for THIS SHEET");
+  submenuSettingsAuthSheet.addItem("Set endpoint for READs (GET)", "setEndpointRead");
+  submenuSettingsAuthSheet.addItem("Set endpoint for WRITEs (POST/PATCH/PUT)", "setEndpointWrite");
+  submenuSettingsAuthSheet.addItem("Set profile name", "setProfileName");
+  submenuSettingsAuth.addSubMenu(submenuSettingsAuthSheet);
+  menu.addSubMenu(submenuSettingsAuth);
   menu.addSeparator();
-  menu.addItem("GET metadata for all rows", "getMetadataForAll");
+  menu.addItem("Make new template row (ADMIN)", "makeTemplateForAdmin");
+  menu.addItem("GET metadata for all rows (ADMIN)", "getMetadataForAllForAdmin");
+  menu.addItem("PUT all rows to the portal (ADMIN)", "putAll");
   menu.addSeparator();
-  menu.addItem("PUT all rows to the portal", "putAll");
-  menu.addItem("POST all rows to the portal", "postAll");
+  menu.addItem("Make new template row (USER)", "makeTemplateForUser");
+  menu.addItem("GET metadata for all rows (USER)", "getMetadataForAllForUser");
   menu.addSeparator();
-  menu.addItem("Export to JSON (Google Drive)", "exportToJson");
+  menu.addItem("PATCH all rows to the portal (USER/ADMIN)", "patchAll");
+  menu.addItem("POST all rows to the portal (USER/ADMIN)", "postAll");
   menu.addSeparator();
-  menu.addItem("Authorize", "authorize");
-  menu.addItem("Set endpoint for READ actions", "setEndpointRead");
-  menu.addItem("Set endpoint for WRITE actions", "setEndpointWrite");
-  menu.addItem("Set profile name", "setProfileName");
-  menu.addItem("Open profile page", "openProfilePage");
+  menu.addItem("Convert selected row to JSON", "convertSelectedRowToJson");
+  menu.addSeparator();
+  submenuTools = SpreadsheetApp.getUi().createMenu("🛠 Tools");
+  submenuTools.addItem("Open profile page", "openProfilePage");
+  submenuTools.addItem("Apply profile to sheet manually", "applyProfileToSheet");
+  submenuTools.addItem("Use external JSON validator for all rows (DANGER)", "useExternalJsonValidator");
+  submenuTools.addItem("Export JSON to Google Drive", "exportToJson");
+  menu.addSubMenu(submenuTools);
   menu.addSeparator();
   menu.addItem("Open tool's github page for README", "openToolGithubPage");
   menu.addToUi();
 }
 
-function isValidEndpoint(endpoint) {
-  return ALL_ENDPOINTS.includes(endpoint);
+function setDefaultEndpointRead() {
+  var endpoint = Browser.inputBox(
+    `* Current default endpoint for READs (GET):\\n${getDefaultEndpointRead()}\\n\\n` +
+    "* Supported ENCODE endpoints:\\n" +
+    `${ENCODE_ENDPOINTS.join("\\n")}\\n\\n` +
+    "* Supported IGVF endpoints:\\n" +
+    `${IGVF_ENDPOINTS.join("\\n")}\\n\\n` +
+    "Enter a new endpoint:"
+  );
+  if (endpoint) {
+    endpoint = trimTrailingSlash(endpoint);
+  }
+  if (!isValidEndpoint(endpoint)) {
+    if (endpoint !== "cancel") {
+      alertBox("Wrong endpoint: " + endpoint);
+    }
+    return;
+  }
+
+  var userProperties = PropertiesService.getUserProperties();
+  return userProperties.setProperty(PROPERTY_DEFAULT_ENDPOINT_READ, endpoint);
+}
+
+function setDefaultEndpointWrite() {
+  var endpoint = Browser.inputBox(
+    `* Current default endpoint for Write actions (PUT/POST):\\n${getDefaultEndpointWrite()}\\n\\n` +
+    "* Supported ENCODE endpoints:\\n" +
+    `${ENCODE_ENDPOINTS.join("\\n")}\\n\\n` +
+    "* Supported IGVF endpoints:\\n" +
+    `${IGVF_ENDPOINTS.join("\\n")}\\n\\n` +
+    'Enter a new endpoint:'
+  );
+  if (endpoint) {
+    endpoint = trimTrailingSlash(endpoint);
+  }
+  if (!isValidEndpoint(endpoint)) {
+    if (endpoint !== "cancel") {
+      alertBox("Wrong endpoint: " + endpoint);
+    }
+    return;
+  }
+
+  var userProperties = PropertiesService.getUserProperties();
+  return userProperties.setProperty(PROPERTY_DEFAULT_ENDPOINT_WRITE, endpoint);
 }
 
 function checkProfile() {
-  if (getProfileName()) {
+  if (getProfileName() && getProfile(getProfileName(), getEndpointRead())) {
     return true;
   }
   alertBox(
     "No profile name found.\n" + 
-    "Go to the menu 'ENCODE' -> 'Set profile name' to define it."
+    "Go to the menu 'ENCODE/IGVF' -> 'Settings & auth' to define it."
   );
 }
 
@@ -69,14 +126,21 @@ function search() {
   }
   var currentProp = getCellValue(sheet, HEADER_ROW, currentCol);
   var profile = getProfile(getProfileName(), getEndpointRead());
-  var url = makeSearchUrlForProp(profile, currentProp, getEndpointRead());
+
+  var endpointForSearch = getEndpointRead();
+
+  // adhoc fix for having different endpoints for REST and search.
+  if (isIgvfEndpoint(endpointForSearch)) {
+    endpointForSearch = ENDPOINT_IGVF_SEARCH_UI;
+  }
+
+  var url = makeSearchUrlForProp(profile, currentProp, endpointForSearch);
 
   if (url) {
     var propType = profile["properties"][currentProp]["type"];
     var selectedCellValue = SpreadsheetApp.getActiveSheet().getActiveCell().getValue();
-
     openSearch(
-      url, currentProp, propType, getEndpointRead(), selectedCellValue, getEndpointRead()
+      url, currentProp, propType, endpointForSearch, selectedCellValue,
     );
   } else {
     alertBox("Couldn't find Search URL for selected column's property.");
@@ -87,7 +151,7 @@ function openProfilePage() {
   if (!checkProfile()) {
     return;
   }
-  
+
   openUrl(
     makeProfileUrl(getProfileName(), getEndpointRead(), format="page")
   );
@@ -97,22 +161,29 @@ function openToolGithubPage() {
   openUrl(URL_GITHUB);
 }
 
-function showSheetAndHeaderInfo() {
+function showSheetInfoAndHeaderLegend() {
   alertBox(
-    "* Sheet information\n" +
-    `- Endpoint READ (GET, profile): ${getEndpointRead()}\n` +
-    `- Endpoint WRITE (PUT, POST): ${getEndpointWrite()}\n` +
+    "* Settings for THIS SHEET\n" +
+    `- Endpoint READ (GET): ${getEndpointRead()}\n` +
+    `- Endpoint WRITE (POST/PATCH/PUT): ${getEndpointWrite()}\n` +
     `- Profile name: ${getProfileName()}\n\n` +
+
+    "* Global settings (used if settings for this sheet are not defined)\n" +
+    `- Endpoint READ (GET): ${getDefaultEndpointRead()}\n` +
+    `- Endpoint WRITE (POST/PATCH/PUT): ${getDefaultEndpointWrite()}\n` +
+    `- Profile name: ${getDefaultProfileName()}\n\n` +
+
     "* Color legends for header properties\n" +
     "- red: required property\n" +
     "- blue: indentifying property\n" +
     "- black: other editable property\n" +
-    "- gray: commented (#) property for debugging\n\n" +
+    "- gray: ADMIN only property (readonly,nonSubmittable,'Do not sumit')\n\n" +
+
     "* Commented properties (filtered out for REST actions)\n" +
     "- #skip: Set it to 1 to skip any REST actions to the portal.\n" +
     "- #error: For debugging info. REST action + HTTP error code + help text.\n\n" +
     "* Searchable properties\n" +
-    "- Italic+Bold+Underline: Select a data cell and go to the menu 'ENCODE' -> 'Search'."
+    "- Bold + Underline: Select a data cell and go to the menu 'ENCODE/IGVF' -> 'Search'."
   );
 }
 
@@ -144,7 +215,7 @@ function applyProfileToSheet() {
   }
 }
 
-function makeTemplate() {
+function makeTemplate(forAdmin=false) {
   if (!checkProfile()) {
     return;
   }
@@ -152,35 +223,109 @@ function makeTemplate() {
   var sheet = getCurrentSheet();
   var profile = getProfile(getProfileName(), getEndpointRead());
 
-  addTemplateMetadataToSheet(sheet, profile);
+  addMetadataTemplateToSheet(sheet, profile, forAdmin);
 
   applyProfileToSheet();
 }
 
-function getMetadataForAll() {
+function makeTemplateForAdmin() {
+  makeTemplate(forAdmin=true);
+}
+
+function makeTemplateForUser() {
+  makeTemplate(forAdmin=false);
+}
+
+function getMetadataForAll(forAdmin) {
   if (!checkProfile()) {
     return;
   }
 
   var sheet = getCurrentSheet();
   var profile = getProfile(getProfileName(), getEndpointRead());
-  var identifyingProp = getIdentifyingPropForProfile(profile);
 
-  if (!findColumnByHeaderValue(sheet, identifyingProp)) {
+  if (profile["identifyingProperties"]
+    .filter(prop => findColumnByHeaderValue(sheet, prop))
+    .length === 0) {
     alertBox(
-      `Column for identifying property "${identifyingProp}" does not exist in header row ${HEADER_ROW}\n\n` +
-      `Add "${identifyingProp}" to the header row and define it for each data row to retrieve from the portal.\n` +
+      `Couldn't find an identifying property (${profile["identifyingProperties"].join(",")}) in header row ${HEADER_ROW}\n\n` +
+      `Add a proper identifying property to the header row and define it for each data row to retrieve from the portal.\n` +
       `You can also add "${HEADER_COMMENTED_PROP_SKIP}" column and set it to 1 for any row to skip all REST actions for that specific row.`
     );
     return;
   }
 
+  var numData = getNumMetadataInSheet(sheet);
+  if (numData && !alertBoxOkCancel(
+    `Found ${numData} data row(s).\n\n` + 
+    "THIS CAN OVERWRITE ON EXISTING DATA ROWS IF #skip IS NOT SET AS 1.\n\n" +
+    "Are you sure to proceed?")) {
+    return;
+  }
+
   var numUpdated = updateSheetWithMetadataFromPortal(
-    sheet, getProfileName(), getEndpointRead(), getEndpointRead()
+    sheet, getProfileName(), getEndpointRead(), getEndpointRead(), forAdmin,
   );
   alertBox(`Updated ${numUpdated} rows.`);
 
   applyProfileToSheet();
+}
+
+function getMetadataForAllForAdmin() {
+  return getMetadataForAll(forAdmin=true);
+}
+
+function getMetadataForAllForUser() {
+  return getMetadataForAll(forAdmin=false);
+}
+
+function useExternalJsonValidator() {
+  if (!checkProfile()) {
+    return;
+  }
+
+  var sheet = getCurrentSheet();
+
+  var numData = getNumMetadataInSheet(sheet);
+  if (numData && !alertBoxOkCancel(
+    `Found ${numData} data row(s).\n\n` + 
+    "DO NOT USE THIS IF YOU ARE WORKING ON SENSATIVE DATA. USE IT AT YOUR OWN RISK.\n" +
+    "IT IS RECOMMENDED TO CONVERT EACH ROW INTO JSON AND THEN COPY-PASTE IT TO YOUR INTERNAL JSON VALIDATOR.\n\n" +
+    "This will validate your data on sheet against the profile schema by using an EXTERNAL JSON schema validator.\n" +
+    "Use this function only when you get an error from the portal and the help message is not very helpful for debugging.\n\n" +
+    `You can add ${HEADER_COMMENTED_PROP_SKIP} column and set it to 1 for a row that you want to skip validation.\n\n` +
+    "Are you sure to proceed?")) {
+    return;
+  }
+
+  var numSubmitted = validateSheet(
+    sheet, getProfileName(), getEndpointRead()
+  );
+  alertBox(`Validated ${numSubmitted} rows.`);
+}
+
+function convertSelectedRowToJson() {
+  if (!checkProfile()) {
+    return;
+  }
+
+  var sheet = getCurrentSheet();
+  var currentRow = sheet.getActiveCell().getRow();
+  if (currentRow <= HEADER_ROW) {
+    alertBox("Select a non-header data cell.");
+    return;
+  }
+
+  var json = convertRowToJson(
+    sheet, currentRow, getProfileName(), getEndpointRead(), keepCommentedProps=false
+  );
+  var jsonText = JSON.stringify(json, null, EXPORTED_JSON_INDENT);
+
+  var htmlOutput = HtmlService
+      .createHtmlOutput(`<pre>${jsonText}</pre>`)
+      .setWidth(500)
+      .setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, `Row: ${currentRow}`);
 }
 
 function putAll() {
@@ -193,17 +338,39 @@ function putAll() {
   var numData = getNumMetadataInSheet(sheet);
   if (numData && !alertBoxOkCancel(
     `Found ${numData} data row(s).\n\n` + 
-    "PUT action will REPLACE metadata on the portal with those on the sheet, " +
-    "any missing properties on the sheet will be REMOVED from portal's metadata.\n\n" +
+    "PUT action will REPLACE metadata on the portal with those on the sheet. " +
+    "Therefore, any properties missing on the sheet will also be REMOVED from portal's metadata.\n\n" +
     `You can add ${HEADER_COMMENTED_PROP_SKIP} column and set it to 1 for a row that you want to skip REST actions.\n\n` +
     `Are you sure to PUT to ${getEndpointWrite()}?`)) {
     return;
   }
 
-  var numSubmitted = putSheetToPortal(
-    sheet, getProfileName(), getEndpointWrite(), getEndpointRead()
+  var numSubmitted = submitSheetToPortal(
+    sheet, getProfileName(), getEndpointWrite(), getEndpointRead(), method="PUT"
   );
-  alertBox(`Submitted (PUT) ${numSubmitted} rows to ${getEndpointWrite()}.`);  
+  alertBox(`Submitted (PUT) ${numSubmitted} rows to ${getEndpointWrite()}.`);
+}
+
+function patchAll() {
+  if (!checkProfile()) {
+    return;
+  }
+
+  var sheet = getCurrentSheet();
+
+  var numData = getNumMetadataInSheet(sheet);
+  if (numData && !alertBoxOkCancel(
+    `Found ${numData} data row(s).\n\n` + 
+    "PATCH action will REPLACE properties on the portal with those non-empty values on the sheet.\n\n" +
+    `You can add ${HEADER_COMMENTED_PROP_SKIP} column and set it to 1 for a row that you want to skip REST actions.\n\n` +
+    `Are you sure to PATCH to ${getEndpointWrite()}?`)) {
+    return;
+  }
+
+  var numSubmitted = submitSheetToPortal(
+    sheet, getProfileName(), getEndpointWrite(), getEndpointRead(), method="PATCH"
+  );
+  alertBox(`Submitted (PATCH) ${numSubmitted} rows to ${getEndpointWrite()}.`);
 }
 
 function postAll() {
@@ -217,15 +384,18 @@ function postAll() {
   if (numData && !alertBoxOkCancel(
     `Found ${numData} data row(s).\n\n` +
     "POST action will submit new objects (rows on the sheet) to the portal.\n\n" +
+    "And then it will UPDATE rows with new identifying properties (e.g. accession, uuid) assigned from the portal. " +
+    "No other properties/values will be updated on the sheet even though some new properties with " +
+    "default values are assigned to them on the portal.\n\n" +
     `You can add ${HEADER_COMMENTED_PROP_SKIP} column and set it to 1 for a row that you want to skip REST actions.\n\n` +
     `Are you sure to POST to ${getEndpointWrite()}?`)) {
     return;
   }
 
-  var numSubmitted = postSheetToPortal(
-    sheet, getProfileName(), getEndpointWrite(), getEndpointRead()
+  var numSubmitted = submitSheetToPortal(
+    sheet, getProfileName(), getEndpointWrite(), getEndpointRead(), method="POST"
   );
-  alertBox(`Submitted (POST) ${numSubmitted} rows to ${getEndpointWrite()}.`);  
+  alertBox(`Submitted (POST) ${numSubmitted} rows to ${getEndpointWrite()}.`);
 
   applyProfileToSheet();
 }
@@ -247,33 +417,44 @@ function exportToJson() {
   );
 }
 
-function authorize() {
-  if (getUsername() && getPassword()) {
+function authorize(server) {
+  if (getUsername(server) && getPassword(server)) {
     if (!alertBoxOkCancel(
-      "Username and password already exist, are you sure to proceed?")) {
+      `Username and password already exist for ${server}, are you sure to proceed?`)) {
       return;
     }
   }
-  
-  var username = Browser.inputBox("Enter your username:");
+
+  var username = Browser.inputBox(`Enter your username for ${server}:`);
   if (!username || username === "cancel") {
     alertBox("Failed to update username.");
     return;
   }
-  setUsername(username);
+  setUsername(username, server);
 
-  var password = Browser.inputBox("Enter your password:");
+  var password = Browser.inputBox(`Enter your password for ${server}:`);
   if (!password || password === "cancel") {
     alertBox("Failed to update password.");
     return;
   }
-  setPassword(password);
+  setPassword(password, server);
+}
+
+function authorizeForEncode() {
+  return authorize(ENCODE);
+}
+
+function authorizeForIgvf() {
+  return authorize(IGVF);
 }
 
 function setEndpointRead() {
   var endpoint = Browser.inputBox(
-    `Current endpoint for READ actions (GET) and profile schema: ${getEndpointRead()}\\n\\n` +
-    `Choices:${ALL_ENDPOINTS.join(", ")}\\n\\n` +
+    `* Current endpoint for READs (GET):\\n${getEndpointRead()}\\n\\n` +
+    "* Supported ENCODE endpoints:\\n" +
+    `${ENCODE_ENDPOINTS.join("\\n")}\\n\\n` +
+    "* Supported IGVF endpoints:\\n" +
+    `${IGVF_ENDPOINTS.join("\\n")}\\n\\n` +
     "Enter a new endpoint:"
   );
   if (endpoint) {
@@ -290,8 +471,11 @@ function setEndpointRead() {
 
 function setEndpointWrite() {
   var endpoint = Browser.inputBox(
-    `Current endpoint for Write actions (GET) and profile schema:\\n${getEndpointWrite()}\\n\\n` +
-    `Choices:${ALL_ENDPOINTS.join(", ")}\\n\\n` +
+    `* Current endpoint for Write actions (PUT/POST):\\n${getEndpointWrite()}\\n\\n` +
+    "* Supported ENCODE endpoints:\\n" +
+    `${ENCODE_ENDPOINTS.join("\\n")}\\n\\n` +
+    "* Supported IGVF endpoints:\\n" +
+    `${IGVF_ENDPOINTS.join("\\n")}\\n\\n` +
     'Enter a new endpoint:'
   );
   if (endpoint) {
@@ -306,38 +490,69 @@ function setEndpointWrite() {
   setCurrentSheetMetadata(KEY_ENDPOINT_WRITE, endpoint);
 }
 
-function setProfileName() {
+function setProfileName() {    
   var profileName = Browser.inputBox(
-    `* Current profile name: ${getProfileName()}\\n\\n` +
-    "Snakecase (with _) or capitalized CamelCase are allowed for a profile name\\n" +
-    "(e.g. Experiment, BiosampleType, biosample_type, ):\\n\\n" +
+    `* Current profile name:\\n${getProfileName()}\\n\\n` +
+    "Snakecase (with _) or capitalized CamelCase are allowed for a profile name.\\n" +
+    "No plural (s) is allowed in profile name.\\n" +
+    "(e.g. Experiment, BiosampleType, biosample_type, lab):\\n\\n" +
     "Enter a new profile name:"
   );
-  if (!isValidProfileName(profileName)) {
+  if (!isValidProfileName(profileName, getEndpointRead())) {
     if (profileName !== "cancel") {
-      alertBox("Wrong profile: " + profileName);
+      alertBox("Wrong profile name: " + profileName);
     }
     return;
   }
   setCurrentSheetMetadata(KEY_PROFILE_NAME, profileName);
 }
 
+function getDefaultProfileName() {
+  var userProperties = PropertiesService.getUserProperties();
+  return userProperties.getProperty(PROPERTY_DEFAULT_PROFILE_NAME);
+}
+
+function setDefaultProfileName() {    
+  var profileName = Browser.inputBox(
+    `* Current default profile name:\\n${getDefaultProfileName()}\\n\\n` +
+    "Snakecase (with _) or capitalized CamelCase are allowed for a profile name.\\n" +
+    "No plural (s) is allowed in profile name.\\n" +
+    "(e.g. Experiment, BiosampleType, biosample_type, lab):\\n\\n" +
+    "Enter a new profile name:"
+  );
+  if (!isValidProfileName(profileName, getEndpointRead())) {
+    if (profileName !== "cancel") {
+      alertBox("Wrong profile name: " + profileName);
+    }
+    return;
+  }
+  var userProperties = PropertiesService.getUserProperties();
+  return userProperties.setProperty(PROPERTY_DEFAULT_PROFILE_NAME, profileName);
+}
+
+function getDefaultEndpointRead() {
+  var userProperties = PropertiesService.getUserProperties();
+  var defaultEndpointRead = userProperties.getProperty(PROPERTY_DEFAULT_ENDPOINT_READ);
+  return defaultEndpointRead ? defaultEndpointRead : DEFAULT_ENDPOINT_READ
+}
+
+function getDefaultEndpointWrite() {
+  var userProperties = PropertiesService.getUserProperties();
+  var defaultEndpointWrite = userProperties.getProperty(PROPERTY_DEFAULT_ENDPOINT_WRITE);
+  return defaultEndpointWrite ? defaultEndpointWrite : DEFAULT_ENDPOINT_WRITE
+}
+
 function getEndpointRead() {
   var endpoint = getCurrentSheetMetadata(KEY_ENDPOINT_READ);
-  if (!endpoint) {
-    return DEFAULT_ENDPOINT_READ;
-  }
-  return endpoint;
+  return endpoint ? endpoint : getDefaultEndpointRead();
 }
 
 function getEndpointWrite() {
   var endpoint = getCurrentSheetMetadata(KEY_ENDPOINT_WRITE);
-  if (!endpoint) {
-    return DEFAULT_ENDPOINT_WRITE;
-  }
-  return endpoint;
+  return endpoint ? endpoint : getDefaultEndpointWrite();
 }
 
 function getProfileName() {
-  return getCurrentSheetMetadata(KEY_PROFILE_NAME);
+  var profileName = getCurrentSheetMetadata(KEY_PROFILE_NAME);
+  return profileName ? profileName : getDefaultProfileName();
 }
